@@ -5,12 +5,26 @@ function populateStockScreenerData() {
     return;
   }
 
+  // Build indexed column to perform an update
+  columnVals =
+    SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Stock Screener')
+    .getRange('D:D')
+    .getValues();
+
+  var indexedRow = [];
+  var rowCounter = 1;
+  columnVals.forEach(function(ticker) {
+    indexedRow[ticker] = rowCounter;
+    rowCounter++;
+  });
+
   // Mark the process status as running, to avoid the same script for being executed simultaneously by the time-driven trigger
   setIsRunning(true);
 
   // Stock screener sheet
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Stock Screener');
 
+  // Set the starting column and row
   var startingColumn = 3;
   var startingRow = 5;
 
@@ -37,75 +51,97 @@ function populateStockScreenerData() {
     Logger.log("Continue from the last updated row @ " + sheet.getRange(3, 24).getValue());
   }
 
+  var requests = []
   for (var i = startingRow; i <= 9999; i++) {
+    // Set the last updated row
+    sheet.getRange(3, 24).setValue(i);
+
     symbol = sheet.getRange(i, startingColumn).getValue();
     Logger.log("Detected symbol: " + symbol);
 
     if (symbol.length > 0) {
       // Fetch stock info
       Logger.log("Fetching Y! Finance data for " + symbol);
-      var url = "https://query2.finance.yahoo.com/v10/finance/quoteSummary/" + symbol + "?modules=assetProfile%2CsummaryDetail%2Cprice%2CdefaultKeyStatistics%2CrecommendationTrend";
-      var response = UrlFetchApp.fetch(url, {'muteHttpExceptions': true});
-      var json = response.getContentText();
-      var data = JSON.parse(json).quoteSummary.result;
-
-      // Set the last updated row
-      sheet.getRange(3, 24).setValue(i);
-
-      if (data == undefined) {
-        continue;
-      }
-
-      // Set the stokc data
-      sheet.getRange(i, 5).setValue(data[0].price.longName);
-      if ("assetProfile" in data[0]) {
-        if ("sector" in data[0].assetProfile) {
-          sheet.getRange(i, 6).setValue(data[0].assetProfile.sector);
-        }
-      }
-      sheet.getRange(i, 7).setValue((data[0].price.marketCap.raw/1000000000).toFixed(2));
-      sheet.getRange(i, 9).setValue(data[0].price.regularMarketPrice.raw);
-      sheet.getRange(i, 10).setValue(data[0].price.regularMarketChangePercent.raw);
-      if ("summaryDetail" in data[0]) {
-        if ("fiftyTwoWeekLow" in data[0].summaryDetail) {
-          sheet.getRange(i, 11).setValue(data[0].summaryDetail.fiftyTwoWeekLow.raw);
-        }
-        if ("fiftyTwoWeekHigh" in data[0].summaryDetail) {
-          sheet.getRange(i, 12).setValue(data[0].summaryDetail.fiftyTwoWeekHigh.raw);
-        }      
-      }
-      if ("defaultKeyStatistics" in data[0]) {
-        if ("trailingEps" in data[0].defaultKeyStatistics) {
-          sheet.getRange(i, 15).setValue(data[0].defaultKeyStatistics.trailingEps.raw);
-        }  
-      }
-      if ("summaryDetail" in data[0]) {
-        if ("trailingPE" in data[0].summaryDetail) {
-          sheet.getRange(i, 16).setValue(data[0].summaryDetail.trailingPE.raw);
-        }
-        if ("trailingAnnualDividendRate" in data[0].summaryDetail) {
-          sheet.getRange(i, 17).setValue(data[0].summaryDetail.trailingAnnualDividendRate.raw);
-        }
-        if ("trailingAnnualDividendYield" in data[0].summaryDetail) {
-          sheet.getRange(i, 18).setValue(data[0].summaryDetail.trailingAnnualDividendYield.raw);
-        }
-      }
-      if ("recommendationTrend" in data[0]) {
-        if ("trend" in data[0].recommendationTrend) {
-          if (0 in data[0].recommendationTrend.trend) {
-            sheet.getRange(i, 19).setValue(data[0].recommendationTrend.trend[0].buy)
-            sheet.getRange(i, 20).setValue(data[0].recommendationTrend.trend[0].hold)
-            sheet.getRange(i, 21).setValue(data[0].recommendationTrend.trend[0].sell)
-          }
-        }
-      }
+      var url = ("https://query2.finance.yahoo.com/v10/finance/quoteSummary/" + symbol + "?modules=assetProfile%2CsummaryDetail%2Cprice%2CdefaultKeyStatistics%2CrecommendationTrend");
+      var request1 = {
+        'url': url,
+        'method' : 'get',
+        'muteHttpExceptions': true
+      };
       
-      Utilities.sleep(100);
+      // Push the request to the requests array. Calls will be made asynchronously.
+      requests.push(url);
+
+      // Process the batch request
+      if (i % 25 == 0 && requests.length > 0) {
+        // Call the requests and process the response
+        var response = UrlFetchApp.fetchAll(requests);
+        
+        response.forEach(function(response) {
+          var json = response.getContentText();
+          var data = JSON.parse(json).quoteSummary.result;
+
+          Logger.log(data);
+
+          if (data == undefined) {
+            return;
+          }
+
+          // Set the stock data
+          Logger.log("Updating row for the ticker: " + data[0].price.symbol);
+
+          sheet.getRange(indexedRow[data[0].price.symbol], 5).setValue(data[0].price.longName);
+          if ("assetProfile" in data[0]) {
+            if ("sector" in data[0].assetProfile) {
+              sheet.getRange(indexedRow[data[0].price.symbol], 6).setValue(data[0].assetProfile.sector);
+            }
+          }
+          sheet.getRange(indexedRow[data[0].price.symbol], 7).setValue((data[0].price.marketCap.raw/1000000000).toFixed(2));
+          sheet.getRange(indexedRow[data[0].price.symbol], 9).setValue(data[0].price.regularMarketPrice.raw);
+          sheet.getRange(indexedRow[data[0].price.symbol], 10).setValue(data[0].price.regularMarketChangePercent.raw);
+          if ("summaryDetail" in data[0]) {
+            if ("fiftyTwoWeekLow" in data[0].summaryDetail) {
+              sheet.getRange(indexedRow[data[0].price.symbol], 11).setValue(data[0].summaryDetail.fiftyTwoWeekLow.raw);
+            }
+            if ("fiftyTwoWeekHigh" in data[0].summaryDetail) {
+              sheet.getRange(indexedRow[data[0].price.symbol], 12).setValue(data[0].summaryDetail.fiftyTwoWeekHigh.raw);
+            }      
+          }
+          if ("defaultKeyStatistics" in data[0]) {
+            if ("trailingEps" in data[0].defaultKeyStatistics) {
+              sheet.getRange(indexedRow[data[0].price.symbol], 15).setValue(data[0].defaultKeyStatistics.trailingEps.raw);
+            }  
+          }
+          if ("summaryDetail" in data[0]) {
+            if ("trailingPE" in data[0].summaryDetail) {
+              sheet.getRange(indexedRow[data[0].price.symbol], 16).setValue(data[0].summaryDetail.trailingPE.raw);
+            }
+            if ("trailingAnnualDividendRate" in data[0].summaryDetail) {
+              sheet.getRange(indexedRow[data[0].price.symbol], 17).setValue(data[0].summaryDetail.trailingAnnualDividendRate.raw);
+            }
+            if ("trailingAnnualDividendYield" in data[0].summaryDetail) {
+              sheet.getRange(indexedRow[data[0].price.symbol], 18).setValue(data[0].summaryDetail.trailingAnnualDividendYield.raw);
+            }
+          }
+          if ("recommendationTrend" in data[0]) {
+            if ("trend" in data[0].recommendationTrend) {
+              if (0 in data[0].recommendationTrend.trend) {
+                sheet.getRange(indexedRow[data[0].price.symbol], 19).setValue(data[0].recommendationTrend.trend[0].buy)
+                sheet.getRange(indexedRow[data[0].price.symbol], 20).setValue(data[0].recommendationTrend.trend[0].hold)
+                sheet.getRange(indexedRow[data[0].price.symbol], 21).setValue(data[0].recommendationTrend.trend[0].sell)
+              }
+            }
+          }
+        });
+        
+        // Reset the batch request
+        requests = [];
+        Utilities.sleep(100);
+      }
     } else {
       sheet.getRange(3, 23).setValue(currentTime);
       sheet.getRange(3, 24).setValue(0);
       sheet.getRange(3, 25).setValue(currentDateLog)
-      return;
     }
   }
 
