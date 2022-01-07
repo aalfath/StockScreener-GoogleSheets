@@ -7,7 +7,7 @@ A Google script to fetch the data from Yahoo! Finance. Contains around 7826 tick
 1. Make a copy of the initial spreadsheet @ https://docs.google.com/spreadsheets/d/1ra4FRXjUIVxda1Rz0RlualMgJGGoKKqHqtdncWigpwM/edit?usp=sharing. This is required because the public sheet that I have provided doesn't have write access which you will need.
 2. Create a new Google Script for that sheet, and paste the content of the stockScreener.gs
 3. If Google asks for a permission to run the script, you might have to create a new GCP project and include it in that script.
-4. Due to the limitation of the maximum execution time of Google Script, it is advised to set a time-driven trigger for the script for every 10 minutes.
+4. Due to the limitation of the maximum execution time of Google Script, it is advised to set a time-driven trigger for the script for every 1 minute (don't worry, the script has caching to prevent it from being executed simultaneously).
 5. It takes around 2-3 hours for the script to fetch the data for all tickers.
 
 # Disclaimer
