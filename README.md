@@ -1,4 +1,4 @@
-![image](https://user-images.githubusercontent.com/7084258/148468038-2954e79c-b713-4197-8849-f62df051f53a.png)
+![image](https://user-images.githubusercontent.com/7084258/148489261-5d27e558-97e3-4774-bee0-77e0088af2b4.png)
 
 # StockScreener-GoogleSheets
 A Google script to fetch the data from Yahoo! Finance. Contains around 7826 tickers from NASDAQ, NYSE and AMEX.
