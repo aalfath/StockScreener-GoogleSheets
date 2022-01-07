@@ -1,4 +1,13 @@
-function populateStockScreenerData() {  
+function populateStockScreenerData() {
+  // Check the cache if the same script is being executed, if so, end this script
+  if(checkRunning() == true) {
+    Logger.log("Another process is still running!")
+    return;
+  }
+
+  // Mark the process status as running, to avoid the same script for being executed simultaneously by the time-driven trigger
+  setIsRunning(true);
+
   // Stock screener sheet
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Stock Screener');
 
@@ -9,12 +18,15 @@ function populateStockScreenerData() {
   var currentTime = currentDate.toString();
 
   // Fetch last update log and compare it
+  var date = new Date();
   var lastUpdateLog = sheet.getRange(3 ,25).getValue();
-  var currentdateLog = parseInt(Utilities.formatDate(new Date(),"EST","D"));
+  var currentDateLog = Math.floor((date.getTime()/1000)).toString();
 
-  Logger.log("Current date: " + currentdateLog);
+  Logger.log("Current date: " + currentDateLog);
   Logger.log("Last update: " + lastUpdateLog);
-  if (lastUpdateLog >= currentdateLog) {
+
+  // If the sheet is updated in the last 24 hours, then skip updating the sheet.
+  if (lastUpdateLog >= currentDateLog-86400) {
     Logger.log("Skipping update. The sheet is updated already!");
     return;
   }
@@ -32,7 +44,7 @@ function populateStockScreenerData() {
     if (symbol.length > 0) {
       // Fetch stock info
       Logger.log("Fetching Y! Finance data for " + symbol);
-      var url = "https://query2.finance.yahoo.com/v10/finance/quoteSummary/" + symbol + "?modules=summaryDetail%2Cprice%2CdefaultKeyStatistics%2CrecommendationTrend";
+      var url = "https://query2.finance.yahoo.com/v10/finance/quoteSummary/" + symbol + "?modules=assetProfile%2CsummaryDetail%2Cprice%2CdefaultKeyStatistics%2CrecommendationTrend";
       var response = UrlFetchApp.fetch(url, {'muteHttpExceptions': true});
       var json = response.getContentText();
       var data = JSON.parse(json).quoteSummary.result;
@@ -46,6 +58,11 @@ function populateStockScreenerData() {
 
       // Set the stokc data
       sheet.getRange(i, 5).setValue(data[0].price.longName);
+      if ("assetProfile" in data[0]) {
+        if ("sector" in data[0].assetProfile) {
+          sheet.getRange(i, 6).setValue(data[0].assetProfile.sector);
+        }
+      }
       sheet.getRange(i, 7).setValue((data[0].price.marketCap.raw/1000000000).toFixed(2));
       sheet.getRange(i, 9).setValue(data[0].price.regularMarketPrice.raw);
       sheet.getRange(i, 10).setValue(data[0].price.regularMarketChangePercent.raw);
@@ -83,12 +100,11 @@ function populateStockScreenerData() {
         }
       }
       
-      Utilities.sleep(50);
+      Utilities.sleep(100);
     } else {
-      // End the script
       sheet.getRange(3, 23).setValue(currentTime);
       sheet.getRange(3, 24).setValue(0);
-      sheet.getRange(3, 25).setValue(parseInt(Utilities.formatDate(new Date(),"EST","D")))
+      sheet.getRange(3, 25).setValue(currentDateLog)
       return;
     }
   }
@@ -96,6 +112,19 @@ function populateStockScreenerData() {
   // End the script
   sheet.getRange(3, 23).setValue(currentTime);
   sheet.getRange(3, 24).setValue(0);
-  sheet.getRange(3, 25).setValue(parseInt(Utilities.formatDate(new Date(),"EST","D")))
+  sheet.getRange(3, 25).setValue(currentDateLog)
+
+  // Clear the script's running status
+  CacheService.getScriptCache().remove("isRunning");
+
   return;
+}
+
+function setIsRunning(value){
+  CacheService.getScriptCache().put("isRunning", value.toString(), 360);
+}
+
+function checkRunning() {
+  var currentState = CacheService.getScriptCache().get("isRunning");
+  return (currentState == 'true');
 }
