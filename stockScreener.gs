@@ -1,4 +1,12 @@
 function populateStockScreenerData() {  
+  // Check the cache if the same script is being executed, if so, end this script
+  if(checkRunning() == true) {
+    return;
+  }
+
+  // Mark the process status as running, to avoid the same script for being executed simultaneously by the time-driven trigger
+  setIsRunning(true);
+
   // Stock screener sheet
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Stock Screener');
 
@@ -98,5 +106,17 @@ function populateStockScreenerData() {
   sheet.getRange(3, 24).setValue(0);
   sheet.getRange(3, 25).setValue(parseInt(Utilities.formatDate(new Date(),"EST","D")))
 
+  // Clear the script's running status
+  setIsRunning(true);
+
   return;
+}
+
+function setIsRunning(value){
+  CacheService.getScriptCache().put("isRunning", value.toString(), 360);
+}
+
+function checkRunning() {
+  var currentState = CacheService.getScriptCache().get("isRunning");
+  return (currentState == 'true');
 }
