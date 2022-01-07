@@ -53,9 +53,6 @@ function populateStockScreenerData() {
 
   var requests = []
   for (var i = startingRow; i <= 9999; i++) {
-    // Set the last updated row
-    sheet.getRange(3, 24).setValue(i);
-
     symbol = sheet.getRange(i, startingColumn).getValue();
     Logger.log("Detected symbol: " + symbol);
 
@@ -134,6 +131,9 @@ function populateStockScreenerData() {
           }
         });
         
+        // Set the last updated row
+        sheet.getRange(3, 24).setValue(i);
+
         // Reset the batch request
         requests = [];
         Utilities.sleep(100);
