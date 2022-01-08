@@ -17,6 +17,11 @@ Also, obligatory I am not a financial advisor. Do your own research.
 
 Consult a professional investment advisor before making any investment decisions! This sheet is shared for the purpose of knowledge sharing only!
 
+# Data Sources
+1. Stock Tickers - https://github.com/rreichel3/US-Stock-Symbols
+2. Market Data - Yahoo Finance API
+
+
 ---
 
 Copyright 2021 https://github.com/aalfath/
