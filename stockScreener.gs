@@ -1,4 +1,11 @@
 function populateStockScreenerData() {
+  // Skip the script if its weekend
+  var today = new Date();
+  if(today.getDay() == 6 || today.getDay() == 0) {
+    Logger.log("It's weekend, no need to fetch the update from the market!")
+    return;
+  }
+  
   // Check the cache if the same script is being executed, if so, end this script
   if(checkRunning() == true) {
     Logger.log("Another process is still running!")
@@ -40,7 +47,7 @@ function populateStockScreenerData() {
   Logger.log("Last update: " + lastUpdateLog);
 
   // If the sheet is updated in the last 24 hours, then skip updating the sheet.
-  if (lastUpdateLog >= currentDateLog-86400) {
+  if (lastUpdateLog >= currentDateLog-43200) {
     Logger.log("Skipping update. The sheet is updated already!");
     return;
   }
@@ -93,9 +100,23 @@ function populateStockScreenerData() {
               sheet.getRange(indexedRow[data[0].price.symbol], 6).setValue(data[0].assetProfile.sector);
             }
           }
-          sheet.getRange(indexedRow[data[0].price.symbol], 7).setValue((data[0].price.marketCap.raw/1000000000).toFixed(2));
-          sheet.getRange(indexedRow[data[0].price.symbol], 9).setValue(data[0].price.regularMarketPrice.raw);
-          sheet.getRange(indexedRow[data[0].price.symbol], 10).setValue(data[0].price.regularMarketChangePercent.raw);
+
+          var marketCap = 0;
+          if ("price" in data[0]) {
+            if ("marketCap" in data[0].price) {
+              marketCap = (data[0].price.marketCap.raw/1000000000).toFixed(2);
+
+              // Market cap data for some tickers aren't available
+              if (isNaN(marketCap)) {
+                marketCap = 0;
+              }  
+            }
+
+            sheet.getRange(indexedRow[data[0].price.symbol], 7).setValue(marketCap);
+            sheet.getRange(indexedRow[data[0].price.symbol], 9).setValue(data[0].price.regularMarketPrice.raw);
+            sheet.getRange(indexedRow[data[0].price.symbol], 10).setValue(data[0].price.regularMarketChangePercent.raw);
+          }
+          
           if ("summaryDetail" in data[0]) {
             if ("fiftyTwoWeekLow" in data[0].summaryDetail) {
               sheet.getRange(indexedRow[data[0].price.symbol], 11).setValue(data[0].summaryDetail.fiftyTwoWeekLow.raw);
